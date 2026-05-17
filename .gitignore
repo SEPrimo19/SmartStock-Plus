@@ -34,8 +34,7 @@ local.properties
 
 # Generated submission packages
 /SmartStock_MCO2_Package*
-/Documentation/_mco2_extracted
-/Documentation/_assets
 
-# Course lesson material (not part of the project)
-/Documentation/Lesssons
+# Not part of the published deliverable: only source code + the PPTX ship.
+/Documentation
+/SmartStock+_MCO2_Presentation_Script.pdf

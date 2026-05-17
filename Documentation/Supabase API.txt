@@ -1,3 +1,0 @@
-Project URL = "https://vhkeosasyvposdpbddoc.supabase.co"
-
-Anon Key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoa2Vvc2FzeXZwb3NkcGJkZG9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcyODM5MzEsImV4cCI6MjA5Mjg1OTkzMX0.1Ul9m993_ZIhXm37uGuykX90Uv2DoVi89pvY_j5uMv4"
