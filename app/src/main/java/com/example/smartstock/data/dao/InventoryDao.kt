@@ -80,6 +80,11 @@ interface InventoryDao {
     @Query("SELECT * FROM inventory_items WHERE updatedAt > :since AND cloudId IS NOT NULL")
     suspend fun getItemsModifiedSince(since: Long): List<InventoryItem>
 
+    // Already-synced rows only (cloudId assigned). Used by the full-pull
+    // reconciliation to detect items that were deleted server-side.
+    @Query("SELECT * FROM inventory_items WHERE cloudId IS NOT NULL")
+    suspend fun getAllSyncedItems(): List<InventoryItem>
+
     // History
     @Query("SELECT * FROM item_history WHERE deletedAt IS NULL ORDER BY timestamp DESC")
     fun getAllHistory(): Flow<List<ItemHistory>>

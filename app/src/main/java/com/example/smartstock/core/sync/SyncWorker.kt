@@ -112,6 +112,20 @@ class SyncWorker @AssistedInject constructor(
             val image = resolvePulledImage(row.imageUri, row.id, local?.imageUri)
             inventoryDao.upsertItem(merged.copy(imageUri = image))
         }
+        // A full pull (since == 0: fresh install, post-logout, or account
+        // switch) returns the cloud's authoritative row set for this team.
+        // Incremental pulls only ever add/update, so a row that was deleted
+        // server-side (e.g. hard-deleted in Supabase) would otherwise linger
+        // locally forever — exactly the "deleted mock data reappears" bug.
+        // Prune any already-synced local item whose cloudId is no longer
+        // present in the cloud. Offline-created rows (cloudId still null,
+        // pending their first push) are deliberately left untouched.
+        if (since == 0L) {
+            val cloudIds = rows.mapTo(HashSet()) { it.id }
+            inventoryDao.getAllSyncedItems()
+                .filter { it.cloudId != null && it.cloudId !in cloudIds }
+                .forEach { inventoryDao.deleteItem(it) }
+        }
     }
 
     /**
