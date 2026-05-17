@@ -31,6 +31,8 @@ local.properties
 *.apk
 *.aab
 *.hprof
+# ...but ship the final deliverable APK in the repo tree.
+!/SmartStock+_MCO2.apk
 
 # Generated submission packages
 /SmartStock_MCO2_Package*
