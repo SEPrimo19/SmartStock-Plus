@@ -1,0 +1,202 @@
+Project No. 3
+App Name: SmartStock+
+Subtitle: Offline-First Inventory & Asset Management System
+
+1. Project Overview
+SmartStock+ is an Android-based inventory and asset management application designed to help organizations efficiently track equipment, tools, and supplies using a mobile device. The app prioritizes offline-first functionality, ensuring that inventory data remains accessible even without internet connectivity.
+
+The application follows modern Android development practices, using Jetpack Compose, clean architecture, and Room database for reliable local data persistence, with optional cloud synchronization in later stages.
+
+2. Real-World Scenario
+Small offices, laboratories, school departments, and student organizations often manage equipment manually using paper logs or spreadsheets. These systems are error-prone, difficult to maintain, and inaccessible during network outages.
+
+SmartStock+ provides a portable and reliable solution that allows users to:
+* Record inventory items on-site
+* Track availability and condition of assets
+* Access inventory data even when offline
+* Synchronize records when internet becomes available
+
+This project reflects real-world IT systems used in asset tracking and resource management.
+
+3. Target Users
+* School laboratories
+* IT departments
+* Student organizations
+* Small offices and businesses
+* Asset custodians and administrators
+
+4. Platform & Development Stack
+* Platform: Android
+* Language: Kotlin
+* UI Framework: Jetpack Compose
+* Architecture: MVVM + Repository Pattern
+* Local Storage: Room Database
+* Cloud Services: Firebase / REST API
+* Scanning Support: Barcode / QR Code (Camera)
+* Minimum Android Version: API 26 (Android 8.0)
+
+5. Core Application Features
+
+5.1 Inventory Management
+* Add new inventory items
+* Edit and delete item records
+* Assign categories (Equipment, Tools, Supplies)
+* Track quantity and condition
+
+5.2 Asset Status Tracking
+* Available
+* In-use
+* Damaged
+* Retired
+
+5.3 Inventory Browsing & Search
+* View complete inventory list
+* Search by name or category
+* Filter by status or availability
+
+5.4 Offline Access
+* Full inventory access without internet
+* Local caching of all records
+* Fast data retrieval using Room
+
+5.5 Compose-Based UI
+* Clean and responsive layouts
+* Material Design 3 styling
+* Smooth list scrolling and transitions
+
+6. MCO 1 Requirements
+Interactive Mobile App Architecture & Local Data System
+
+Objective
+Design and implement the foundational structure of an offline-capable inventory system using clean architecture, Room-based local persistence, and responsive Jetpack Compose UI.
+
+6.1 Functional Requirements (MCO 1)
+Application Architecture
+* MVVM architecture
+* Repository pattern
+* Separation of UI, data, and business logic
+
+Local Data Persistence (Room)
+Entities:
+* InventoryItemEntity
+* CategoryEntity
+* AssetStatusEntity
+
+Stored Data Includes:
+* Item name and description
+* Category
+* Quantity
+* Status
+* Date added / updated
+
+DAO Operations:
+* Insert, update, delete inventory items
+* Query inventory list
+* Filter by status or category
+
+User Interface (Jetpack Compose)
+* Inventory list screen
+* Add/edit item screen
+* Item detail screen
+* Offline indicator
+
+State Management**
+* StateFlow / LiveData
+* Lifecycle-aware ViewModels
+* Reactive UI updates
+
+6.2 Technical Requirements (MCO 1)
+* Jetpack Compose UI components
+* Room database with DAOs
+* Repository abstraction
+* Compose Navigation
+* Material Design 3
+
+6.3 MCO 1 Output
+* Fully functional offline-first inventory app
+* Clean and scalable architecture
+* Persistent local asset records
+
+7. MCO 2 Requirements
+Cloud-Enabled, Data-Driven & Enhanced User Experience
+
+Objective
+Extend the inventory system with cloud synchronization, real-time updates, and advanced interaction features.
+
+7.1 Functional Requirements (MCO 2)
+Cloud Integration
+* Sync inventory records to Firebase or REST API
+* Pull cloud updates into local Room database
+* Conflict handling between local and cloud data
+
+Offline-First Data Strategy
+* Local-first reads
+* Background sync using WorkManager
+* Graceful fallback when offline
+
+Barcode / QR Code Scanning
+* Scan item codes using camera
+* Auto-match or create inventory items
+* Runtime permission handling
+
+User Roles & Access Control
+* Admin: manage inventory and users
+* User: view and update item status
+* Role-based UI restrictions
+
+Enhanced UI & Interaction
+* Animated inventory updates
+* Visual stock-level indicators
+* Custom Canvas-based quantity bars
+
+7.2 Technical Requirements (MCO 2)
+* Firebase Firestore / REST API
+* WorkManager background tasks
+* Camera runtime permissions
+* Compose animations
+* Custom Canvas elements
+
+7.3 MCO 2 Output
+* Cloud-synced inventory system
+* Real-time stock updates
+* Enhanced UI and interaction
+* Reliable offline-first experience
+
+8. Non-Functional Requirements
+* Fast UI rendering
+* Efficient local storage
+* Minimal battery usage
+* Secure permission handling
+* Maintainable and scalable codebase
+
+
+9. Suggested Application Screens
+
+1. Splash / Loading Screen
+2. Inventory List Screen
+3. Add / Edit Inventory Item Screen
+4. Item Detail Screen
+5. Barcode Scanner Screen
+6. Sync Status Screen
+7. Settings & User Roles Screen
+
+
+10. Project Deliverables
+Complete Android Studio project
+APK build
+Documentation:
+    * Architecture diagram
+    * Database schema
+    * Feature-MCO mapping
+
+11. Month Development Timeline
+
+| Month   | Focus |
+| :---    | :--- |
+| Month 1 | UI & local database |
+| Month 2 | Offline-first logic |
+| Month 3 | Cloud sync & scanning |
+| Month 4 | Enhancements & finalization |
+
+---
+Would you like me to start by drafting the **Database Schema** for the Room entities mentioned in Section 6.1?

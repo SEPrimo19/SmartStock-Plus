@@ -1,0 +1,41 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# IDE / tooling caches
+/.idea
+/.kotlin
+/.vscode
+/.claude
+
+# Local Gradle sandboxes & SDK homes (machine-specific, large)
+/.gradle
+/.gradle-sandbox
+/.gradle-user-home
+/.android-home
+
+# Build outputs & packaged artifacts
+/app/build
+*.apk
+*.aab
+*.hprof
+
+# Generated submission packages
+/SmartStock_MCO2_Package*
+/Documentation/_mco2_extracted
+/Documentation/_assets
+
+# Course lesson material (not part of the project)
+/Documentation/Lesssons
