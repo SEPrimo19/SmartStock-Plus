@@ -101,18 +101,22 @@ class SyncWorker @AssistedInject constructor(
         for (row in rows) {
             upsertPulledItem(row)
         }
-        // A full pull (since == 0: fresh install, post-logout, or account
-        // switch) returns the cloud's authoritative row set for this team.
-        // Incremental pulls only ever add/update, so a row that was deleted
-        // server-side (e.g. hard-deleted in Supabase) would otherwise linger
-        // locally forever — exactly the "deleted mock data reappears" bug.
-        // Prune any already-synced local item whose cloudId is no longer
-        // present in the cloud. Offline-created rows (cloudId still null,
-        // pending their first push) are deliberately left untouched.
-        if (since == 0L) {
-            val cloudIds = rows.mapTo(HashSet()) { it.id }
+        // Prune local items that were deleted server-side. An incremental
+        // pull (since != 0) only ever returns add/updates, so a row hard-
+        // or soft-deleted in the cloud would linger locally forever — the
+        // "deleted mock data still shows after an APK update-install" bug
+        // (old DB + old non-zero checkpoint both survive the update, so
+        // since == 0 never happens and the old prune never ran). Use the
+        // cloud's *authoritative* live id set instead of this pull's page,
+        // so reconciliation works on every sync regardless of checkpoint.
+        // A null result means the fetch failed — skip pruning rather than
+        // mass-deleting on a transient hiccup. Offline-created rows
+        // (cloudId still null, pending first push) are left untouched.
+        val liveCloudIds = remote.fetchAllItemIds()
+        if (liveCloudIds != null) {
+            val keep = liveCloudIds.toHashSet()
             inventoryDao.getAllSyncedItems()
-                .filter { it.cloudId != null && it.cloudId !in cloudIds }
+                .filter { it.cloudId != null && it.cloudId !in keep }
                 .forEach { inventoryDao.deleteItem(it) }
         }
     }

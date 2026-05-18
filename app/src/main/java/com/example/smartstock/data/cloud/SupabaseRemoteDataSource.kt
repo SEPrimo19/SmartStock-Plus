@@ -188,6 +188,26 @@ class SupabaseRemoteDataSource @Inject constructor(
         }.decodeList<CloudInventoryItem>().firstOrNull()
     }
 
+    /**
+     * The authoritative set of live (not soft-deleted) item cloud-ids for
+     * the caller's team, independent of any sync checkpoint. Used to prune
+     * local rows that were deleted server-side but linger after an APK
+     * update-install (old DB + old non-zero checkpoint survive, so the
+     * incremental pull never sees — and never removes — them).
+     *
+     * Returns null on any failure so the caller can skip pruning rather
+     * than mass-deleting on a transient network/auth hiccup.
+     */
+    suspend fun fetchAllItemIds(): List<String>? {
+        if (!requireAuth()) return null
+        return runCatching {
+            supabase.postgrest.from(TABLE_ITEMS).select()
+                .decodeList<CloudInventoryItem>()
+                .filter { it.deletedAt == null }
+                .map { it.id }
+        }.getOrNull()
+    }
+
     suspend fun fetchHistorySince(sinceMillis: Long): List<CloudItemHistory> {
         if (!requireAuth()) return emptyList()
         return supabase.postgrest.from(TABLE_HISTORY).select {
