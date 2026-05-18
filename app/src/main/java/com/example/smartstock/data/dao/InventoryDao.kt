@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.example.smartstock.data.entity.AssetStatusEntity
 import com.example.smartstock.data.entity.CategoryEntity
 import com.example.smartstock.data.entity.InventoryItem
@@ -47,7 +48,13 @@ interface InventoryDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertItem(item: InventoryItem): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // @Upsert (not @Insert REPLACE): INSERT-or-UPDATE. REPLACE is a
+    // DELETE+INSERT under SQLite, and inventory_items is the ON DELETE
+    // CASCADE parent of item_usage_records/item_history/linked_barcodes —
+    // so re-pulling an item with REPLACE silently wiped its usage records
+    // (empty Reports / empty item_usage_records). @Upsert UPDATEs the row
+    // in place, so no cascade fires and children survive.
+    @Upsert
     suspend fun upsertItem(item: InventoryItem): Long
 
     @Query("SELECT COUNT(*) FROM inventory_items WHERE deletedAt IS NULL")
@@ -104,7 +111,7 @@ interface InventoryDao {
     @Query("SELECT * FROM item_history WHERE updatedAt > :since AND cloudId IS NOT NULL")
     suspend fun getHistoryModifiedSince(since: Long): List<ItemHistory>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertHistory(history: ItemHistory): Long
 
     @Query(
@@ -200,7 +207,7 @@ interface InventoryDao {
     @Query("SELECT * FROM item_usage_records WHERE cloudId IS NOT NULL")
     suspend fun getAllSyncedUsageRecords(): List<ItemUsageRecord>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertUsageRecord(record: ItemUsageRecord): Long
 
     @Query("SELECT * FROM item_usage_records WHERE status = 'Active' AND deletedAt IS NULL ORDER BY checkedOutAt DESC")
@@ -225,7 +232,7 @@ interface InventoryDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCategory(category: CategoryEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertCategory(category: CategoryEntity): Long
 
     @Update
@@ -265,7 +272,7 @@ interface InventoryDao {
     suspend fun getDistinctItemCategoryNames(): List<String>
 
     // Asset statuses
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertAssetStatus(status: AssetStatusEntity): Long
 
     @Update
@@ -330,7 +337,7 @@ interface InventoryDao {
     @Query("SELECT * FROM linked_barcodes WHERE updatedAt > :since AND cloudId IS NOT NULL")
     suspend fun getLinkedBarcodesModifiedSince(since: Long): List<LinkedBarcode>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun upsertLinkedBarcode(barcode: LinkedBarcode): Long
 
     @Query(
