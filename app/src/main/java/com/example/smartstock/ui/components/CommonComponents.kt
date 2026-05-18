@@ -11,9 +11,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -22,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -306,31 +316,58 @@ fun ConnectivityStatusBadge(
     pendingSyncCount: Int = 0,
     modifier: Modifier = Modifier
 ) {
+    // Shared driver: a gentle pulse for the live status dot and a steady
+    // spin for the sync icon while a sync is in flight.
+    val transition = rememberInfiniteTransition(label = "status")
+    val pulseAlpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    val syncSpin by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spin"
+    )
+    val statusColor = if (isOnline) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Row(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // Connectivity badge
+        // Connectivity badge — a pulsing dot reads as "live" at a glance.
         Surface(
             shape = RoundedCornerShape(16.dp),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             color = MaterialTheme.colorScheme.surface
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (isOnline) Icons.Outlined.Wifi else Icons.Outlined.SignalWifiOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                    tint = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .alpha(if (isOnline) pulseAlpha else 1f)
+                        .background(statusColor, CircleShape)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (isOnline) "Online" else "Offline",
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (isOnline) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = statusColor
                 )
             }
         }
@@ -349,7 +386,9 @@ fun ConnectivityStatusBadge(
                     Icon(
                         imageVector = Icons.Outlined.Sync,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier
+                            .size(14.dp)
+                            .rotate(if (syncState == SyncState.SYNCING) syncSpin else 0f),
                         tint = Orange
                     )
                     Spacer(modifier = Modifier.width(4.dp))

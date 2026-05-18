@@ -88,7 +88,28 @@ fun DashboardScreen(
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val syncState by viewModel.syncState.collectAsStateWithLifecycle()
     val currentRole by inventoryViewModel.currentUserRole.collectAsStateWithLifecycle()
+    val loggedInUser by inventoryViewModel.loggedInUser.collectAsStateWithLifecycle()
     val context = LocalContext.current
+
+    // Time-of-day greeting + first name + team for the header subtitle.
+    val headerGreeting = remember(loggedInUser) {
+        val hour = java.util.Calendar.getInstance()
+            .get(java.util.Calendar.HOUR_OF_DAY)
+        val partOfDay = when (hour) {
+            in 5..11 -> "Good morning"
+            in 12..17 -> "Good afternoon"
+            else -> "Good evening"
+        }
+        val firstName = loggedInUser?.name?.trim()
+            ?.substringBefore(' ')
+            ?.takeIf { it.isNotBlank() }
+        val team = loggedInUser?.teamName?.trim()?.takeIf { it.isNotBlank() }
+        buildString {
+            append(partOfDay)
+            if (firstName != null) append(", ").append(firstName)
+            if (team != null) append(" · ").append(team)
+        }
+    }
 
     var showAddDialog by remember { mutableStateOf(false) }
     var lastScanned by remember { mutableStateOf<String?>(null) }
@@ -140,6 +161,7 @@ fun DashboardScreen(
 
     AdaptiveScreenScaffold(
         title = "SmartStock+",
+        subtitle = headerGreeting,
         showTopBar = !adaptiveInfo.isTwoPane,
         actions = { ConnectivityStatusBadge(isOnline = isOnline, syncState = syncState) }
     ) { paddingValues ->

@@ -36,6 +36,7 @@ object SmartStockDimens {
 fun AdaptiveScreenScaffold(
     title: String,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     showTopBar: Boolean = true,
     navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable () -> Unit = {},
@@ -49,7 +50,24 @@ fun AdaptiveScreenScaffold(
         topBar = {
             if (showTopBar) {
                 TopAppBar(
-                    title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+                    title = {
+                        if (subtitle.isNullOrBlank()) {
+                            Text(title, style = MaterialTheme.typography.titleLarge)
+                        } else {
+                            Column {
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = subtitle,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f)
+                                )
+                            }
+                        }
+                    },
                     navigationIcon = { navigationIcon?.invoke() },
                     actions = { actions() },
                     windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
