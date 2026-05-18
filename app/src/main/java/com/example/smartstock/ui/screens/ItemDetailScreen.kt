@@ -81,6 +81,7 @@ import com.example.smartstock.core.labels.LabelGenerator
 import com.example.smartstock.data.entity.InventoryItem
 import com.example.smartstock.data.entity.ItemHistory
 import com.example.smartstock.data.entity.LinkedBarcode
+import com.example.smartstock.ui.components.LabelPreviewDialog
 import com.example.smartstock.ui.DashboardViewModel
 import com.example.smartstock.ui.InventoryViewModel
 import com.example.smartstock.ui.adaptive.DetailPlaceholder
@@ -113,6 +114,7 @@ fun ItemDetailScreen(
     var showConditionDialog by remember { mutableStateOf(false) }
     var showAddBarcodeDialog by remember { mutableStateOf(false) }
     var showLabelMenu by remember { mutableStateOf(false) }
+    var labelPreview by remember { mutableStateOf<LabelFormat?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
@@ -156,14 +158,14 @@ fun ItemDetailScreen(
                                 text = { Text("QR Code label") },
                                 onClick = {
                                     showLabelMenu = false
-                                    item?.let { launchLabelShare(context, it, LabelFormat.QrCode) }
+                                    labelPreview = LabelFormat.QrCode
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Barcode label") },
                                 onClick = {
                                     showLabelMenu = false
-                                    item?.let { launchLabelShare(context, it, LabelFormat.Barcode) }
+                                    labelPreview = LabelFormat.Barcode
                                 }
                             )
                         }
@@ -230,6 +232,16 @@ fun ItemDetailScreen(
         } ?: DetailPlaceholder(
             title = "Item not found",
             subtitle = "The selected inventory item is no longer available."
+        )
+    }
+
+    val previewFormat = labelPreview
+    val previewItem = item
+    if (previewFormat != null && previewItem != null) {
+        LabelPreviewDialog(
+            item = previewItem,
+            initialFormat = previewFormat,
+            onDismiss = { labelPreview = null }
         )
     }
 
@@ -329,6 +341,7 @@ fun ItemDetailDialog(
     var showConditionDialog by remember { mutableStateOf(false) }
     var showAddBarcodeDialog by remember { mutableStateOf(false) }
     var showLabelMenu by remember { mutableStateOf(false) }
+    var labelPreview by remember { mutableStateOf<LabelFormat?>(null) }
     val context = LocalContext.current
 
     Dialog(onDismissRequest = onDismiss) {
@@ -383,14 +396,14 @@ fun ItemDetailDialog(
                                 text = { Text("QR Code label") },
                                 onClick = {
                                     showLabelMenu = false
-                                    item?.let { launchLabelShare(context, it, LabelFormat.QrCode) }
+                                    labelPreview = LabelFormat.QrCode
                                 }
                             )
                             DropdownMenuItem(
                                 text = { Text("Barcode label") },
                                 onClick = {
                                     showLabelMenu = false
-                                    item?.let { launchLabelShare(context, it, LabelFormat.Barcode) }
+                                    labelPreview = LabelFormat.Barcode
                                 }
                             )
                         }
@@ -481,6 +494,16 @@ fun ItemDetailDialog(
         )
     }
 
+    val previewFormat = labelPreview
+    val previewItem = item
+    if (previewFormat != null && previewItem != null) {
+        LabelPreviewDialog(
+            item = previewItem,
+            initialFormat = previewFormat,
+            onDismiss = { labelPreview = null }
+        )
+    }
+
     if (showAddBarcodeDialog && item != null) {
         AddLinkedBarcodeDialog(
             onDismiss = { showAddBarcodeDialog = false },
@@ -510,6 +533,7 @@ fun ItemDetailPaneContent(
     var showConditionDialog by remember { mutableStateOf(false) }
     var showAddBarcodeDialog by remember { mutableStateOf(false) }
     var showLabelMenu by remember { mutableStateOf(false) }
+    var labelPreview by remember { mutableStateOf<LabelFormat?>(null) }
     val context = LocalContext.current
 
     item?.let { currentItem ->
@@ -536,14 +560,14 @@ fun ItemDetailPaneContent(
                             text = { Text("QR Code label") },
                             onClick = {
                                 showLabelMenu = false
-                                launchLabelShare(context, currentItem, LabelFormat.QrCode)
+                                labelPreview = LabelFormat.QrCode
                             }
                         )
                         DropdownMenuItem(
                             text = { Text("Barcode label") },
                             onClick = {
                                 showLabelMenu = false
-                                launchLabelShare(context, currentItem, LabelFormat.Barcode)
+                                labelPreview = LabelFormat.Barcode
                             }
                         )
                     }
@@ -635,6 +659,16 @@ fun ItemDetailPaneContent(
                 item?.let { viewModel.updateItemCondition(it, newCondition) }
                 showConditionDialog = false
             }
+        )
+    }
+
+    val previewFormat = labelPreview
+    val previewItem = item
+    if (previewFormat != null && previewItem != null) {
+        LabelPreviewDialog(
+            item = previewItem,
+            initialFormat = previewFormat,
+            onDismiss = { labelPreview = null }
         )
     }
 

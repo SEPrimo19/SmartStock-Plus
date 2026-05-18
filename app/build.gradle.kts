@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.work.compiler)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.print)
     implementation(libs.zxing.core)
     implementation(libs.supabase.postgrest)
     implementation(libs.supabase.auth)

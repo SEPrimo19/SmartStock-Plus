@@ -1,5 +1,6 @@
 package com.example.smartstock.core.labels
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -8,7 +9,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
+import androidx.print.PrintHelper
 import com.example.smartstock.data.entity.InventoryItem
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.EncodeHintType
@@ -25,6 +30,54 @@ object LabelGenerator {
 
     private const val FILE_AUTHORITY_SUFFIX = ".fileprovider"
     private val FILE_TS_FMT = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+
+    /** The on-screen preview bitmap for [item] in the chosen [format]. */
+    fun buildLabelBitmap(item: InventoryItem, format: LabelFormat): Bitmap =
+        renderLabel(item, format)
+
+    /**
+     * Save the label PNG to the device gallery (Pictures/SmartStock) via
+     * MediaStore — no storage permission needed on API 29+. Returns true
+     * on success; the caller falls back to Share on false (e.g. API < 29
+     * where a public-gallery insert needs WRITE_EXTERNAL_STORAGE).
+     */
+    fun saveToGallery(context: Context, item: InventoryItem, format: LabelFormat): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val bitmap = renderLabel(item, format)
+        val name = "label_${item.assetCode}_${FILE_TS_FMT.format(Date())}.png"
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.DISPLAY_NAME, name)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+            put(
+                MediaStore.Images.Media.RELATIVE_PATH,
+                Environment.DIRECTORY_PICTURES + "/SmartStock"
+            )
+            put(MediaStore.Images.Media.IS_PENDING, 1)
+        }
+        val collection =
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val uri = resolver.insert(collection, values) ?: return false
+        return runCatching {
+            resolver.openOutputStream(uri)!!.use {
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            true
+        }.getOrElse {
+            runCatching { resolver.delete(uri, null, null) }
+            false
+        }
+    }
+
+    /** Hand the label bitmap to the system print dialog (also offers Save-as-PDF). */
+    fun printLabel(context: Context, item: InventoryItem, format: LabelFormat) {
+        PrintHelper(context).apply {
+            scaleMode = PrintHelper.SCALE_MODE_FIT
+        }.printBitmap("Label ${item.assetCode}", renderLabel(item, format))
+    }
 
     fun generateAndShare(context: Context, item: InventoryItem, format: LabelFormat): Intent {
         val bitmap = renderLabel(item, format)
