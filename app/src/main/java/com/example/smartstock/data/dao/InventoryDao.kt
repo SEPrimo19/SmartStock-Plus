@@ -192,6 +192,14 @@ interface InventoryDao {
     @Query("SELECT * FROM item_usage_records WHERE updatedAt > :since AND cloudId IS NOT NULL")
     suspend fun getUsageRecordsModifiedSince(since: Long): List<ItemUsageRecord>
 
+    // Every already-synced usage record. Used by the push-side
+    // reconciliation to re-upload rows whose original push failed (offline
+    // or a parent-FK race at checkout) and that the checkpoint has since
+    // moved past — otherwise they'd never reach the cloud and Reports
+    // would stay empty for everyone but the device that created them.
+    @Query("SELECT * FROM item_usage_records WHERE cloudId IS NOT NULL")
+    suspend fun getAllSyncedUsageRecords(): List<ItemUsageRecord>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertUsageRecord(record: ItemUsageRecord): Long
 

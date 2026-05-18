@@ -208,6 +208,23 @@ class SupabaseRemoteDataSource @Inject constructor(
         }.getOrNull()
     }
 
+    /**
+     * The set of usage-record cloud-ids that actually made it to the
+     * server, RLS-scoped to the caller's team. The push-side reconciler
+     * compares this against the local synced rows so any record whose
+     * original upload failed (and that the checkpoint has moved past) is
+     * re-pushed instead of being stranded — the cause of an empty
+     * item_usage_records table / blank Reports.
+     */
+    suspend fun fetchAllUsageRecordIds(): List<String>? {
+        if (!requireAuth()) return null
+        return runCatching {
+            supabase.postgrest.from(TABLE_USAGE).select()
+                .decodeList<CloudUsageRecord>()
+                .map { it.id }
+        }.getOrNull()
+    }
+
     suspend fun fetchHistorySince(sinceMillis: Long): List<CloudItemHistory> {
         if (!requireAuth()) return emptyList()
         return supabase.postgrest.from(TABLE_HISTORY).select {

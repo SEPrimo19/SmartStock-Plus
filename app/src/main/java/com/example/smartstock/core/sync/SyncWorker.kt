@@ -278,6 +278,31 @@ class SyncWorker @AssistedInject constructor(
                 remote.upsertUsageRecord(record, cloudId, parentCloudId, barcodeCloudId)
             }.onFailure { recordFailure("usage ${record.id}", it) }
         }
+
+        // Self-heal stranded usage records. The incremental loop above only
+        // sees rows with updatedAt > checkpoint, so a checkout whose first
+        // push failed (offline, or the parent item not yet in the cloud)
+        // is never retried once the checkpoint advances — leaving
+        // item_usage_records empty and Reports blank for every other user.
+        // Compare local synced rows against the cloud's authoritative id
+        // set and re-upload anything missing. A null fetch (network/auth
+        // hiccup) skips this so we never thrash.
+        val cloudUsageIds = remote.fetchAllUsageRecordIds()
+        if (cloudUsageIds != null) {
+            val present = cloudUsageIds.toHashSet()
+            for (record in inventoryDao.getAllSyncedUsageRecords()) {
+                val cloudId = record.cloudId ?: continue
+                if (cloudId in present) continue
+                val parentCloudId = inventoryDao.getItemByIdRaw(record.itemId)?.cloudId
+                val barcodeCloudId = record.barcodeId?.let {
+                    inventoryDao.getLinkedBarcodeById(it)?.cloudId
+                }
+                runCatching {
+                    remote.upsertUsageRecord(record, cloudId, parentCloudId, barcodeCloudId)
+                }.onFailure { recordFailure("usage(reconcile) ${record.id}", it) }
+            }
+        }
+
         for (category in inventoryDao.getCategoriesModifiedSince(since)) {
             val cloudId = category.cloudId ?: continue
             runCatching {
