@@ -27,7 +27,7 @@ import com.example.smartstock.data.entity.PendingSyncEntity
         PendingSyncEntity::class,
         LinkedBarcode::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -53,6 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
                 .addMigrations(MIGRATION_7_8)
                 .addMigrations(MIGRATION_8_9)
                 .addMigrations(MIGRATION_9_10)
+                .addMigrations(MIGRATION_10_11)
                 .build()
                 INSTANCE = instance
                 instance
@@ -279,6 +280,39 @@ abstract class AppDatabase : RoomDatabase() {
                         "CREATE UNIQUE INDEX IF NOT EXISTS index_${table}_cloudId ON $table(cloudId)"
                     )
                 }
+            }
+        }
+
+        private val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Pre-sync builds (schema <= 9) stored inventory rows with
+                // no cloudId, and MIGRATION_9_10 only backfilled updatedAt
+                // — never cloudId. Such rows can never be pushed (the push
+                // query requires `cloudId IS NOT NULL`) and are never
+                // pruned (deletion reconciliation deliberately spares
+                // cloudId-null rows so genuine offline work is never lost).
+                // They therefore linger forever on an APK update-install
+                // (the old DB survives the update) until a logout wipes
+                // local data — the "deleted mock data still shows" report.
+                //
+                // Current code always assigns a cloudId at insert time,
+                // even fully offline (InventoryRepository.insertItem), so a
+                // cloudId-null inventory row can ONLY be this obsolete
+                // pre-sync/mock data. Drop it (and its now-orphaned
+                // children) exactly once, here.
+                db.execSQL(
+                    "DELETE FROM item_usage_records WHERE itemId IN " +
+                        "(SELECT id FROM inventory_items WHERE cloudId IS NULL)"
+                )
+                db.execSQL(
+                    "DELETE FROM item_history WHERE itemId IN " +
+                        "(SELECT id FROM inventory_items WHERE cloudId IS NULL)"
+                )
+                db.execSQL(
+                    "DELETE FROM linked_barcodes WHERE itemId IN " +
+                        "(SELECT id FROM inventory_items WHERE cloudId IS NULL)"
+                )
+                db.execSQL("DELETE FROM inventory_items WHERE cloudId IS NULL")
             }
         }
 
