@@ -69,13 +69,20 @@ class SyncWorker @AssistedInject constructor(
         val syncStartedAt = System.currentTimeMillis()
 
         return runCatching {
+            // Push local changes FIRST so every local row (items, usage
+            // records, history) is safely on the server before any pull
+            // operation can touch Room. Previously push ran after pulls,
+            // creating a race: pullItems could cascade-delete usage records
+            // (via ON DELETE CASCADE on the FK) before they were ever
+            // uploaded — leaving item_usage_records empty and Reports blank
+            // on every other device. Push-first eliminates that window.
+            val anyPushFailed = pushLocalChanges(checkpoint)
             pullItems(checkpoint)
             pullLinkedBarcodes(checkpoint) // before usage records (FK lookup)
             pullHistory(checkpoint)
             pullUsageRecords(checkpoint)
             pullCategories(checkpoint)
             pullAssetStatuses(checkpoint)
-            val anyPushFailed = pushLocalChanges(checkpoint)
 
             if (anyPushFailed) {
                 // Don't move the checkpoint forward — if we did, the failed
