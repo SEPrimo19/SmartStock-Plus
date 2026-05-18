@@ -331,6 +331,12 @@ alter table public.item_usage_records add column if not exists quantity      int
 alter table public.item_usage_records add column if not exists location      text not null default '';
 alter table public.item_usage_records add column if not exists used_by       text not null default '';
 alter table public.item_usage_records add column if not exists checked_out_at timestamptz not null default now();
+-- Legacy column from a previous schema: `used_at` was a NOT NULL
+-- timestamp superseded by `checked_out_at`. The current app never writes
+-- it, so its not-null constraint rejected every insert ("null value in
+-- column "used_at" ... violates not-null constraint"). Drop it where it
+-- lingers; `if exists` makes this a no-op on fresh/clean schemas.
+alter table public.item_usage_records drop column if exists used_at;
 create index if not exists item_usage_records_item_id_idx on public.item_usage_records(item_id);
 create index if not exists item_usage_records_team_id_idx on public.item_usage_records(team_id);
 
