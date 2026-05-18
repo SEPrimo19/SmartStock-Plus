@@ -101,20 +101,27 @@ class SyncWorker @AssistedInject constructor(
         for (row in rows) {
             upsertPulledItem(row)
         }
-        // Prune local items that were deleted server-side. An incremental
-        // pull (since != 0) only ever returns add/updates, so a row hard-
-        // or soft-deleted in the cloud would linger locally forever — the
-        // "deleted mock data still shows after an APK update-install" bug
-        // (old DB + old non-zero checkpoint both survive the update, so
-        // since == 0 never happens and the old prune never ran). Use the
-        // cloud's *authoritative* live id set instead of this pull's page,
-        // so reconciliation works on every sync regardless of checkpoint.
-        // A null result means the fetch failed — skip pruning rather than
-        // mass-deleting on a transient hiccup. Offline-created rows
-        // (cloudId still null, pending first push) are left untouched.
-        val liveCloudIds = remote.fetchAllItemIds()
-        if (liveCloudIds != null) {
-            val keep = liveCloudIds.toHashSet()
+        // Prune items deleted server-side — but ONLY on a full pull
+        // (since == 0: fresh install / logout / account switch), where the
+        // fetched `rows` are the cloud's authoritative set for this team.
+        //
+        // The previous checkpoint-independent prune was actively
+        // destructive: on every refresh it deleted any local item whose
+        // cloudId wasn't in the cloud yet (e.g. an item whose push hadn't
+        // landed), and because item_usage_records / item_history FK onto
+        // inventory_items with ON DELETE CASCADE, that silently wiped the
+        // item's usage records too — exactly the "Reports records vanish
+        // after refresh, item_usage_records stays empty" report. Legacy
+        // mock data from pre-sync builds is already handled once by
+        // MIGRATION_10_11, so the aggressive version is not needed.
+        //
+        // Extra safety: if a full pull returns zero rows but we still hold
+        // synced items locally, that's far more likely an empty/transient
+        // cloud or a team-scope blip than the user deleting everything —
+        // skip the prune so we never mass-delete (and cascade-wipe usage
+        // history). Offline-created rows (cloudId null) are left untouched.
+        if (since == 0L && rows.isNotEmpty()) {
+            val keep = rows.mapTo(HashSet()) { it.id }
             inventoryDao.getAllSyncedItems()
                 .filter { it.cloudId != null && it.cloudId !in keep }
                 .forEach { inventoryDao.deleteItem(it) }
