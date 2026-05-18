@@ -83,13 +83,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
         auth: { autoRefreshToken: false, persistSession: false },
     })
 
+    // Resolve who the caller actually is from their JWT. We must filter the
+    // profile lookup by this id: profiles_team_select RLS returns EVERY
+    // profile in the caller's team, so a bare .single() throws "multiple
+    // rows" as soon as the team has any staff — which surfaced to the user
+    // as the misleading "could not load caller profile".
+    const { data: userData, error: userErr } = await callerClient.auth.getUser()
+    const callerId = userData?.user?.id
+    if (userErr || !callerId) {
+        return json({ error: "your session is invalid. Sign out and sign in again." }, 401)
+    }
+
     const { data: callerProfile, error: profileErr } = await callerClient
         .from("profiles")
         .select("id, role, is_active, team_id")
-        .single()
+        .eq("id", callerId)
+        .maybeSingle()
 
-    if (profileErr || !callerProfile) {
+    if (profileErr) {
         return json({ error: "could not load caller profile" }, 401)
+    }
+    if (!callerProfile) {
+        return json(
+            { error: "your profile no longer exists. Ask an admin to re-create your account." },
+            401
+        )
     }
     if (!callerProfile.is_active) {
         return json({ error: "your account is inactive" }, 403)

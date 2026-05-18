@@ -3,8 +3,10 @@ package com.example.smartstock.ui
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.smartstock.core.auth.BiometricAuth
 import com.example.smartstock.core.preferences.AppPreferences
 import com.example.smartstock.core.sync.SyncManager
+import com.example.smartstock.core.util.ErrorText
 import com.example.smartstock.data.auth.AuthUser
 import com.example.smartstock.data.auth.SupabaseAuthRepository
 import com.example.smartstock.data.auth.TeamMember
@@ -41,7 +43,7 @@ class InventoryViewModel @Inject constructor(
     private val authRepository: SupabaseAuthRepository,
     private val syncManager: SyncManager,
     private val appPreferences: AppPreferences,
-    @Suppress("UNUSED_PARAMETER") application: Application
+    private val application: Application
 ) : ViewModel() {
 
     companion object {
@@ -133,7 +135,7 @@ class InventoryViewModel @Inject constructor(
                     onComplete(true)
                 },
                 onFailure = { err ->
-                    _operationError.value = err.message ?: "Failed to add staff"
+                    _operationError.value = ErrorText.friendly(err, "Failed to add staff")
                     onComplete(false)
                 }
             )
@@ -465,7 +467,7 @@ class InventoryViewModel @Inject constructor(
                     }
                 },
                 onFailure = { err ->
-                    _loginError.value = err.message ?: "Invalid email or password"
+                    _loginError.value = ErrorText.friendly(err, "Invalid email or password")
                 }
             )
         }
@@ -490,7 +492,7 @@ class InventoryViewModel @Inject constructor(
                     onSuccess()
                 },
                 onFailure = { err ->
-                    _loginError.value = err.message ?: "Failed to create account"
+                    _loginError.value = ErrorText.friendly(err, "Failed to create account")
                 }
             )
         }
@@ -501,10 +503,25 @@ class InventoryViewModel @Inject constructor(
     }
 
     fun logout() {
+        val uid = appPreferences.lastUserId
+        val biometricLock = uid != null &&
+            appPreferences.isBiometricEnabled(uid) &&
+            BiometricAuth.isAvailable(application)
+
         _isLoggedIn.value = false
         _loggedInUser.value = null
         _currentUserRole.value = UserRole.Staff
         syncManager.cancelAllSync()
+
+        if (biometricLock) {
+            // This account opted into biometric unlock. Treat "Log out" as
+            // a lock: keep the Supabase session + local cache + lastUserId
+            // so the fingerprint button on the auth screen can resume the
+            // session instantly. A full sign-out only happens when the
+            // user disables biometrics or signs in as someone else.
+            return
+        }
+
         viewModelScope.launch {
             authRepository.signOut()
             // Drop the local cache so the next account on this device
@@ -514,6 +531,26 @@ class InventoryViewModel @Inject constructor(
             appPreferences.lastSyncedAtMillis = 0L
             appPreferences.lastSyncError = null
             appPreferences.lastUserId = null
+        }
+    }
+
+    /**
+     * Resume the still-persisted session after a biometric lock. Called
+     * from the auth screen's fingerprint button. If the session is gone
+     * (e.g. token fully expired) the user is asked to sign in normally.
+     */
+    fun unlockWithBiometrics(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            val user = authRepository.currentUser()
+            if (user == null) {
+                _loginError.value = "Session expired. Please sign in again."
+                appPreferences.lastUserId = null
+                return@launch
+            }
+            ensureLocalDataBelongsTo(user.id)
+            applyAuthUser(user)
+            _loginError.value = null
+            onSuccess()
         }
     }
 
@@ -695,7 +732,8 @@ class InventoryViewModel @Inject constructor(
                     onResult(true)
                 }
                 .onFailure {
-                    _passwordResetMessage.value = it.message ?: "Failed to send the code."
+                    _passwordResetMessage.value =
+                        ErrorText.friendly(it, "Failed to send the code.")
                     onResult(false)
                 }
         }
@@ -730,7 +768,7 @@ class InventoryViewModel @Inject constructor(
                 }
                 .onFailure {
                     _passwordResetMessage.value =
-                        it.message ?: "Invalid or expired code. Try again."
+                        ErrorText.friendly(it, "Invalid or expired code. Try again.")
                     onResult(false)
                 }
         }

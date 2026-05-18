@@ -17,19 +17,33 @@ class NetworkConnectivityObserver(context: Context) : ConnectivityObserver {
     override val isOnline: Flow<Boolean> = callbackFlow {
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                trySend(true)
+                // "Available" only means a network exists — not that it can
+                // actually reach the internet. Re-evaluate against the
+                // validated capability so a connected-but-no-internet Wi-Fi
+                // still reads as offline.
+                trySend(hasInternetConnection())
             }
 
             override fun onLost(network: Network) {
                 trySend(hasInternetConnection())
             }
 
+            override fun onUnavailable() {
+                trySend(false)
+            }
+
             override fun onCapabilitiesChanged(
                 network: Network,
                 networkCapabilities: NetworkCapabilities
             ) {
-                val hasInternet =
-                    networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                // Require both INTERNET (the link claims internet) and
+                // VALIDATED (Android probed it and traffic actually flows),
+                // so dropping the connection flips the indicator to Offline.
+                val hasInternet = networkCapabilities.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_INTERNET
+                ) && networkCapabilities.hasCapability(
+                    NetworkCapabilities.NET_CAPABILITY_VALIDATED
+                )
                 trySend(hasInternet)
             }
         }
@@ -47,6 +61,7 @@ class NetworkConnectivityObserver(context: Context) : ConnectivityObserver {
     private fun hasInternetConnection(): Boolean {
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 }

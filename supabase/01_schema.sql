@@ -828,6 +828,37 @@ create policy item_images_team_delete on storage.objects for delete
 
 
 -- =====================================================================
+-- Orphan-team cleanup. Deleting a profile (e.g. removing a user in the
+-- Supabase dashboard) used to leave its team row behind forever. When the
+-- deleted profile was the last member of its team, drop the now-empty
+-- team so stale tenants don't accumulate. Other members keep their team.
+create or replace function public.cleanup_orphan_team()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+    if old.team_id is not null
+       and not exists (
+           select 1 from public.profiles where team_id = old.team_id
+       )
+    then
+        delete from public.teams where id = old.team_id;
+    end if;
+    return old;
+end;
+$$;
+
+alter function public.cleanup_orphan_team() owner to postgres;
+
+drop trigger if exists trg_cleanup_orphan_team on public.profiles;
+create trigger trg_cleanup_orphan_team
+    after delete on public.profiles
+    for each row execute function public.cleanup_orphan_team();
+
+
+-- =====================================================================
 -- Tell PostgREST to reload its schema cache. New columns (item_local_id,
 -- updated_at, etc.) added by the migrations above are invisible to the
 -- REST API until this fires — that's the source of the

@@ -92,13 +92,12 @@ fun AuthScreen(
     }
     var biometricError by remember { mutableStateOf<String?>(null) }
 
-    // Biometrics can only resume an already-persisted session — it never
-    // authenticates against Supabase. So this fast path appears only when a
-    // session is restorable AND this account opted into biometrics on this
-    // device (same guarantee as the BiometricGate screen).
-    val biometricUserId = loggedInUser?.id.orEmpty()
-    val canUseBiometric = isLoggedIn &&
-        biometricUserId.isNotBlank() &&
+    // Biometrics resumes the persisted session. After a biometric "lock"
+    // (Log out while biometrics is enabled) the session is intentionally
+    // kept, so the fingerprint button must show even though isLoggedIn is
+    // false. Drive it off the remembered account, not the live session.
+    val biometricUserId = (loggedInUser?.id ?: appPreferences.lastUserId).orEmpty()
+    val canUseBiometric = biometricUserId.isNotBlank() &&
         appPreferences.isBiometricEnabled(biometricUserId) &&
         BiometricAuth.isAvailable(context)
 
@@ -112,7 +111,7 @@ fun AuthScreen(
                 activity = activity,
                 title = "Unlock SmartStock+",
                 subtitle = "Confirm it's you to continue",
-                onSuccess = { onLoginSuccess() },
+                onSuccess = { viewModel.unlockWithBiometrics { onLoginSuccess() } },
                 onError = { biometricError = it },
                 onCancel = { }
             )
