@@ -34,7 +34,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.example.smartstock.ui.components.AppRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -109,8 +109,8 @@ fun HistoryScreen(
             return@AdaptiveScreenScaffold
         }
 
-        PullToRefreshBox(
-            isRefreshing = syncState == com.example.smartstock.core.sync.SyncState.SYNCING,
+        AppRefreshBox(
+            isSyncing = syncState == com.example.smartstock.core.sync.SyncState.SYNCING,
             onRefresh = { dashboardViewModel.requestSync() },
             modifier = Modifier
                 .fillMaxSize()

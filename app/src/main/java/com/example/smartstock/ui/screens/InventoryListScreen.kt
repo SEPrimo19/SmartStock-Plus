@@ -37,7 +37,7 @@ import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import com.example.smartstock.ui.components.AppRefreshBox
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -428,8 +428,8 @@ fun InventoryListScreen(
 
                     Spacer(modifier = Modifier.height(if (isCompactTwoPaneHeader) 6.dp else SmartStockDimens.sectionSpacing))
 
-                    PullToRefreshBox(
-                        isRefreshing = syncState == com.example.smartstock.core.sync.SyncState.SYNCING,
+                    AppRefreshBox(
+                        isSyncing = syncState == com.example.smartstock.core.sync.SyncState.SYNCING,
                         onRefresh = { dashboardViewModel.requestSync() },
                         modifier = Modifier
                             .fillMaxWidth()

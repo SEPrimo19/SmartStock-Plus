@@ -31,7 +31,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -496,4 +505,43 @@ fun AppEmptyStateCard(
             }
         }
     }
+}
+
+/**
+ * Pull-to-refresh wrapper with deliberate feedback. Binds the spinner to
+ * the real sync state, but also holds it visible for a short minimum so a
+ * fast or no-op sync still gives the user a clear "it refreshed" signal
+ * instead of an imperceptible flicker. Drop-in replacement for
+ * PullToRefreshBox: same modifier + BoxScope content contract.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppRefreshBox(
+    isSyncing: Boolean,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    var refreshing by remember { mutableStateOf(false) }
+    var startedAt by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(isSyncing, refreshing) {
+        if (refreshing && !isSyncing) {
+            val minVisibleMs = 650L
+            val elapsed = System.currentTimeMillis() - startedAt
+            if (elapsed < minVisibleMs) delay(minVisibleMs - elapsed)
+            refreshing = false
+        }
+    }
+
+    PullToRefreshBox(
+        isRefreshing = refreshing || isSyncing,
+        onRefresh = {
+            startedAt = System.currentTimeMillis()
+            refreshing = true
+            onRefresh()
+        },
+        modifier = modifier,
+        content = content
+    )
 }

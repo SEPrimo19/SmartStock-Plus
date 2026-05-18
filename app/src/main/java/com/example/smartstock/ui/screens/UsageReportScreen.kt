@@ -81,6 +81,7 @@ import com.example.smartstock.ui.adaptive.DetailPlaceholder
 import com.example.smartstock.ui.adaptive.MasterDetailPane
 import com.example.smartstock.ui.adaptive.SmartStockDimens
 import com.example.smartstock.ui.components.AppEmptyStateCard
+import com.example.smartstock.ui.components.AppRefreshBox
 import com.example.smartstock.ui.components.ConnectivityStatusBadge
 import com.example.smartstock.ui.components.SkeletonList
 import com.example.smartstock.ui.theme.Green
@@ -258,8 +259,13 @@ fun UsageReportScreen(
                 .fillMaxSize()
                 .padding(paddingValues),
             primaryPane = { paneModifier ->
-        Column(
+        AppRefreshBox(
+            isSyncing = syncState == com.example.smartstock.core.sync.SyncState.SYNCING,
+            onRefresh = { dashboardViewModel.requestSync() },
             modifier = paneModifier.fillMaxSize()
+        ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
         ) {
             // Summary cards (hidden in two-pane — counts already shown in tab labels)
             if (!adaptiveInfo.isTwoPane) {
@@ -433,6 +439,7 @@ fun UsageReportScreen(
                     }
                 }
             }
+        }
         }
             },
             secondaryPane = { paneModifier ->

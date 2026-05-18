@@ -63,6 +63,7 @@ import com.example.smartstock.ui.adaptive.AdaptiveInfo
 import com.example.smartstock.ui.adaptive.AdaptiveScreenScaffold
 import com.example.smartstock.ui.adaptive.SmartStockDimens
 import com.example.smartstock.ui.components.AppEmptyStateCard
+import com.example.smartstock.ui.components.AppRefreshBox
 import com.example.smartstock.ui.components.ConnectivityStatusBadge
 import com.example.smartstock.ui.components.DashboardChartsCard
 import com.example.smartstock.ui.components.StatusChip
@@ -254,10 +255,16 @@ fun DashboardScreen(
             )
         }
 
-        Row(
+        AppRefreshBox(
+            isSyncing = syncState == com.example.smartstock.core.sync.SyncState.SYNCING,
+            onRefresh = { viewModel.requestSync() },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+        ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(SmartStockDimens.screenPadding),
             horizontalArrangement = Arrangement.spacedBy(SmartStockDimens.paneSpacing)
         ) {
@@ -311,6 +318,7 @@ fun DashboardScreen(
                     )
                 }
             }
+        }
         }
     }
 }
