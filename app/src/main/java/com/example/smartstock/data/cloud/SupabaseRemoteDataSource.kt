@@ -173,6 +173,21 @@ class SupabaseRemoteDataSource @Inject constructor(
         }.decodeList()
     }
 
+    /**
+     * Fetch a single inventory item by its cloud UUID, regardless of
+     * updated_at. Used by the sync worker to pull a child row's parent
+     * item on-demand when it isn't resolvable locally (otherwise the
+     * child would be silently dropped and, once the checkpoint advances,
+     * lost forever — the "Staff Reports stays empty" bug). RLS still
+     * scopes this to the caller's team.
+     */
+    suspend fun fetchItemById(cloudId: String): CloudInventoryItem? {
+        if (!requireAuth()) return null
+        return supabase.postgrest.from(TABLE_ITEMS).select {
+            filter { eq("id", cloudId) }
+        }.decodeList<CloudInventoryItem>().firstOrNull()
+    }
+
     suspend fun fetchHistorySince(sinceMillis: Long): List<CloudItemHistory> {
         if (!requireAuth()) return emptyList()
         return supabase.postgrest.from(TABLE_HISTORY).select {

@@ -99,18 +99,7 @@ class SyncWorker @AssistedInject constructor(
     private suspend fun pullItems(since: Long) {
         val rows: List<CloudInventoryItem> = remote.fetchItemsSince(since)
         for (row in rows) {
-            // Match by cloudId first; fall back to asset_code so a cloud
-            // row reconciles with an existing local item instead of
-            // creating a second local copy (mirror of the push-side
-            // asset_code reconciliation — both directions stay dup-free).
-            val local = inventoryDao.findItemByCloudId(row.id)
-                ?: row.assetCode.takeIf { it.isNotBlank() }
-                    ?.let { inventoryDao.findItemByAssetCodeRaw(it) }
-            // Last-write-wins: skip if local row is newer than the cloud row.
-            if (local != null && local.updatedAt >= row.updatedAt.toMillisOrZero()) continue
-            val merged = row.toEntity(localId = local?.id ?: 0)
-            val image = resolvePulledImage(row.imageUri, row.id, local?.imageUri)
-            inventoryDao.upsertItem(merged.copy(imageUri = image))
+            upsertPulledItem(row)
         }
         // A full pull (since == 0: fresh install, post-logout, or account
         // switch) returns the cloud's authoritative row set for this team.
@@ -314,6 +303,25 @@ class SyncWorker @AssistedInject constructor(
      * Returns null if neither resolves — the caller should skip that row;
      * the next sync run will pick it up after the parent has landed.
      */
+    /**
+     * Upsert one pulled cloud item into Room and return its local id.
+     * Match by cloudId first; fall back to asset_code so a cloud row
+     * reconciles with an existing local item instead of creating a second
+     * local copy (mirror of the push-side asset_code reconciliation —
+     * both directions stay dup-free). Last-write-wins on updatedAt.
+     */
+    private suspend fun upsertPulledItem(row: CloudInventoryItem): Int {
+        val local = inventoryDao.findItemByCloudId(row.id)
+            ?: row.assetCode.takeIf { it.isNotBlank() }
+                ?.let { inventoryDao.findItemByAssetCodeRaw(it) }
+        if (local != null && local.updatedAt >= row.updatedAt.toMillisOrZero()) {
+            return local.id
+        }
+        val merged = row.toEntity(localId = local?.id ?: 0)
+        val image = resolvePulledImage(row.imageUri, row.id, local?.imageUri)
+        return inventoryDao.upsertItem(merged.copy(imageUri = image)).toInt()
+    }
+
     private suspend fun resolveItemLocalId(parentCloudId: String?, hint: Int?): Int? {
         if (parentCloudId != null) {
             val byCloud = inventoryDao.findItemByCloudId(parentCloudId)
@@ -322,6 +330,17 @@ class SyncWorker @AssistedInject constructor(
         if (hint != null && hint > 0) {
             val byHint = inventoryDao.getItemByIdRaw(hint)
             if (byHint != null && byHint.cloudId == parentCloudId) return byHint.id
+        }
+        // Parent not present locally. This happens on a device that didn't
+        // create the parent (e.g. Staff pulling Admin's data) when the
+        // parent landed outside this checkpoint window or a page boundary.
+        // Without this, the child row is dropped and — once the checkpoint
+        // advances past it — never re-fetched, so Reports stays empty with
+        // no error. Pull the parent on-demand by UUID and resolve again.
+        if (parentCloudId != null) {
+            val cloudParent = runCatching { remote.fetchItemById(parentCloudId) }
+                .getOrNull()
+            if (cloudParent != null) return upsertPulledItem(cloudParent)
         }
         return null
     }
