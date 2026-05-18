@@ -3,6 +3,7 @@ package com.example.smartstock.data.auth
 import android.util.Log
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.gotrue.OtpType
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
@@ -110,6 +111,38 @@ class SupabaseAuthRepository @Inject constructor(
 
     suspend fun resetPasswordForEmail(email: String): Result<Unit> = runCatching {
         supabase.auth.resetPasswordForEmail(email.trim().lowercase())
+    }
+
+    /**
+     * Step 1 of the OTP password reset. Triggers Supabase's "Reset
+     * Password" recovery email. As long as that email template uses
+     * {{ .Token }} (a 6-digit code) instead of {{ .ConfirmationURL }}
+     * (a magic link), the user receives an OTP to type back in — no
+     * link to follow. Same endpoint as [resetPasswordForEmail]; the
+     * delivery format is controlled entirely by the email template.
+     */
+    suspend fun sendPasswordResetOtp(email: String): Result<Unit> = runCatching {
+        supabase.auth.resetPasswordForEmail(email.trim().lowercase())
+    }
+
+    /**
+     * Step 2 of the OTP password reset. Verifies the recovery [otp] to
+     * open a short-lived recovery session, sets the [newPassword], then
+     * signs out so the user logs in fresh with the new credentials.
+     */
+    suspend fun resetPasswordWithOtp(
+        email: String,
+        otp: String,
+        newPassword: String
+    ): Result<Unit> = runCatching {
+        supabase.auth.verifyEmailOtp(
+            type = OtpType.Email.RECOVERY,
+            email = email.trim().lowercase(),
+            token = otp.trim()
+        )
+        supabase.auth.modifyUser { password = newPassword }
+        runCatching { supabase.auth.signOut() }
+        Unit
     }
 
     suspend fun currentUser(): AuthUser? {

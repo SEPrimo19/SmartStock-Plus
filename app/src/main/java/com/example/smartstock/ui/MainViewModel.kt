@@ -679,19 +679,59 @@ class InventoryViewModel @Inject constructor(
 
     fun clearPasswordResetMessage() { _passwordResetMessage.value = null }
 
-    fun requestPasswordReset(email: String) {
+    /** Step 1: email the user a 6-digit recovery OTP. */
+    fun sendPasswordResetOtp(email: String, onResult: (Boolean) -> Unit) {
         val normalized = email.trim()
-        if (normalized.isBlank()) {
-            _passwordResetMessage.value = "Enter your email first, then tap Forgot password."
+        if (normalized.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(normalized).matches()) {
+            _passwordResetMessage.value = "Enter a valid email address first."
+            onResult(false)
             return
         }
         viewModelScope.launch {
-            authRepository.resetPasswordForEmail(normalized)
+            authRepository.sendPasswordResetOtp(normalized)
                 .onSuccess {
-                    _passwordResetMessage.value = "Reset link sent to $normalized."
+                    _passwordResetMessage.value =
+                        "We sent a 6-digit code to $normalized. Enter it below."
+                    onResult(true)
                 }
                 .onFailure {
-                    _passwordResetMessage.value = it.message ?: "Failed to send reset link."
+                    _passwordResetMessage.value = it.message ?: "Failed to send the code."
+                    onResult(false)
+                }
+        }
+    }
+
+    /** Step 2: verify the OTP and set the new password. */
+    fun resetPasswordWithOtp(
+        email: String,
+        otp: String,
+        newPassword: String,
+        onResult: (Boolean) -> Unit
+    ) {
+        val normalized = email.trim()
+        when {
+            otp.trim().length < 6 -> {
+                _passwordResetMessage.value = "Enter the 6-digit code from your email."
+                onResult(false)
+                return
+            }
+            newPassword.length < 6 -> {
+                _passwordResetMessage.value = "New password must be at least 6 characters."
+                onResult(false)
+                return
+            }
+        }
+        viewModelScope.launch {
+            authRepository.resetPasswordWithOtp(normalized, otp.trim(), newPassword)
+                .onSuccess {
+                    _passwordResetMessage.value =
+                        "Password updated. Sign in with your new password."
+                    onResult(true)
+                }
+                .onFailure {
+                    _passwordResetMessage.value =
+                        it.message ?: "Invalid or expired code. Try again."
+                    onResult(false)
                 }
         }
     }

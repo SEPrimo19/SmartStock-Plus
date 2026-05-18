@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -118,6 +119,7 @@ fun AuthScreen(
         }
     }
 
+    var showForgotDialog by remember { mutableStateOf(false) }
     var isSignUpMode by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -154,6 +156,23 @@ fun AuthScreen(
             emailTouched = true
             passwordTouched = true
         }
+    }
+
+    if (showForgotDialog) {
+        ForgotPasswordDialog(
+            viewModel = viewModel,
+            initialEmail = email,
+            passwordResetMessage = passwordResetMessage,
+            onDismiss = {
+                showForgotDialog = false
+                viewModel.clearPasswordResetMessage()
+            },
+            onResetComplete = { resetEmail ->
+                showForgotDialog = false
+                email = resetEmail
+                password = ""
+            }
+        )
     }
 
     // Branded gradient backdrop. The whole screen scrolls and is IME-aware,
@@ -409,7 +428,8 @@ fun AuthScreen(
                         TextButton(
                             onClick = {
                                 viewModel.clearLoginError()
-                                viewModel.requestPasswordReset(email)
+                                viewModel.clearPasswordResetMessage()
+                                showForgotDialog = true
                             },
                             modifier = Modifier.align(Alignment.End)
                         ) {
@@ -488,4 +508,168 @@ fun AuthScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ForgotPasswordDialog(
+    viewModel: InventoryViewModel,
+    initialEmail: String,
+    passwordResetMessage: String?,
+    onDismiss: () -> Unit,
+    onResetComplete: (String) -> Unit
+) {
+    var step by remember { mutableStateOf(1) }
+    var email by remember { mutableStateOf(initialEmail) }
+    var otp by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var localError by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = {
+            Text(if (step == 1) "Reset password" else "Enter the code")
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                if (step == 1) {
+                    Text(
+                        text = "Enter your account email and we'll send you a " +
+                            "6-digit verification code.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = { Text("Email") },
+                        leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Email,
+                            imeAction = ImeAction.Done
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                } else {
+                    Text(
+                        text = "We sent a 6-digit code to $email. Enter it below " +
+                            "and choose a new password.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    OutlinedTextField(
+                        value = otp,
+                        onValueChange = { if (it.length <= 6) otp = it.filter { c -> c.isDigit() } },
+                        label = { Text("6-digit code") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Next
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    OutlinedTextField(
+                        value = newPassword,
+                        onValueChange = { newPassword = it },
+                        label = { Text("New password") },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(
+                                    imageVector = if (passwordVisible)
+                                        Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        singleLine = true,
+                        visualTransformation = if (passwordVisible)
+                            VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Next
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = { Text("Confirm new password") },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        singleLine = true,
+                        visualTransformation = if (passwordVisible)
+                            VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            imeAction = ImeAction.Done
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
+                    )
+                    TextButton(
+                        onClick = {
+                            if (!isLoading) {
+                                localError = null
+                                isLoading = true
+                                viewModel.sendPasswordResetOtp(email) { isLoading = false }
+                            }
+                        }
+                    ) { Text("Resend code") }
+                }
+
+                val message = localError ?: passwordResetMessage
+                if (message != null) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (localError != null)
+                            MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !isLoading,
+                onClick = {
+                    localError = null
+                    if (step == 1) {
+                        isLoading = true
+                        viewModel.sendPasswordResetOtp(email) { ok ->
+                            isLoading = false
+                            if (ok) step = 2
+                        }
+                    } else {
+                        if (newPassword != confirmPassword) {
+                            localError = "Passwords do not match."
+                        } else {
+                            isLoading = true
+                            viewModel.resetPasswordWithOtp(email, otp, newPassword) { ok ->
+                                isLoading = false
+                                if (ok) onResetComplete(email.trim())
+                            }
+                        }
+                    }
+                }
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(if (step == 1) "Send code" else "Reset password")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { if (!isLoading) onDismiss() }) { Text("Cancel") }
+        }
+    )
 }
