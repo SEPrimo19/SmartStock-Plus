@@ -321,6 +321,16 @@ alter table public.item_usage_records add column if not exists barcode_id    uui
 alter table public.item_usage_records add column if not exists returned_at   timestamptz;
 alter table public.item_usage_records add column if not exists updated_at    timestamptz not null default now();
 alter table public.item_usage_records add column if not exists deleted_at    timestamptz;
+-- Backfill the base columns too. `create table if not exists` is a no-op
+-- when an older item_usage_records table already exists, so a project
+-- created against a previous schema is missing these — PostgREST then
+-- rejects every push with "Could not find the 'checked_out_at' column
+-- ... in the schema cache".
+alter table public.item_usage_records add column if not exists item_local_id integer;
+alter table public.item_usage_records add column if not exists quantity      integer not null default 1;
+alter table public.item_usage_records add column if not exists location      text not null default '';
+alter table public.item_usage_records add column if not exists used_by       text not null default '';
+alter table public.item_usage_records add column if not exists checked_out_at timestamptz not null default now();
 create index if not exists item_usage_records_item_id_idx on public.item_usage_records(item_id);
 create index if not exists item_usage_records_team_id_idx on public.item_usage_records(team_id);
 

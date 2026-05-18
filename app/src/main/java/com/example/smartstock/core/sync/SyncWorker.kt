@@ -255,8 +255,11 @@ class SyncWorker @AssistedInject constructor(
         fun recordFailure(label: String, error: Throwable) {
             if (error is kotlinx.coroutines.CancellationException) throw error
             Log.w(TAG, "push $label failed", error)
-            preferences.lastSyncError =
-                "$label: ${error.message ?: error::class.java.simpleName}"
+            // Sanitize: raw ktor/supabase messages dump the request URL and
+            // every header (including the Bearer JWT) onto the Profile
+            // screen. ErrorText keeps only the server's reason.
+            preferences.lastSyncError = com.example.smartstock.core.util.ErrorText
+                .friendly(error, "$label: sync failed")
             anyFailed = true
         }
 
